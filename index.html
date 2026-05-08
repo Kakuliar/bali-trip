@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bali Trip Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        .custom-scrollbar::-webkit-scrollbar { height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        [contenteditable]:empty:before {
+            content: attr(data-placeholder);
+            color: #94a3b8;
+            pointer-events: none;
+            display: block;
+        }
+        [contenteditable]:focus {
+            outline: 2px solid #10b981;
+            border-radius: 4px;
+            padding: 2px;
+            background: #fff;
+        }
+
+        .spinner {
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #10b981;
+            border-radius: 50%;
+            width: 14px;
+            height: 14px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            vertical-align: middle;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="bg-slate-50 font-sans text-slate-800 antialiased p-4 md:p-8 selection:bg-emerald-100 selection:text-emerald-900 min-h-screen flex flex-col">
+
+    <!-- Auth Loading Overlay -->
+    <div id="auth-loading" class="fixed inset-0 bg-white/80 backdrop-blur-sm z-50 flex items-center justify-center">
+        <div class="text-center">
+            <div class="spinner !w-8 !h-8 !border-4 mb-4"></div>
+            <p class="text-slate-500 font-medium animate-pulse">Syncing your trip data...</p>
+        </div>
+    </div>
+
+    <!-- Main Container -->
+    <div id="app-content" class="max-w-5xl mx-auto space-y-6 flex-grow hidden w-full">
+
+        <!-- Header Section -->
+        <header class="bg-white rounded-2xl shadow-sm p-6 md:p-8 border border-slate-100 relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-32 h-32 bg-emerald-50 rounded-bl-full -z-10"></div>
+            <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                <div>
+                    <div class="flex items-center gap-3 mb-2">
+                        <h1 class="text-3xl md:text-4xl font-bold text-emerald-600 tracking-tight">Bali Trip Dashboard</h1>
+                        <span id="sync-status" class="text-xs font-medium"></span>
+                    </div>
+                    <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-slate-500 font-medium">
+                        <span class="flex items-center gap-1.5">
+                            <i data-lucide="calendar" class="w-4 h-4"></i>
+                            May 16 - May 23, 2026
+                        </span>
+                        <span class="hidden sm:inline text-slate-300">|</span>
+                        <span class="flex items-center gap-1.5">
+                            <i data-lucide="map-pin" class="w-4 h-4"></i>
+                            Denpasar - Ubud - Uluwatu - Jimbaran
+                        </span>
+                    </div>
+                </div>
+
+            </div>
+        </header>
+
+        <!-- Daily Itinerary Matrix -->
+        <main class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+            <div class="bg-slate-50 border-b border-slate-200 py-3 px-6 flex justify-between items-center">
+                <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wider">Daily Itinerary & Tasks</h2>
+                <span class="text-xs text-slate-400">Click any text to edit</span>
+            </div>
+            <div class="overflow-x-auto custom-scrollbar">
+                <table class="w-full text-left border-collapse whitespace-nowrap md:whitespace-normal min-w-[800px]">
+                    <thead>
+                        <tr class="bg-slate-50 border-b border-slate-200">
+                            <th class="py-3 px-6 text-xs font-semibold text-slate-500 uppercase tracking-wider w-32">Date</th>
+                            <th class="py-3 px-6 text-xs font-semibold text-slate-500 uppercase tracking-wider w-48">Location</th>
+                            <th class="py-3 px-6 text-xs font-semibold text-slate-500 uppercase tracking-wider w-1/3">Activities</th>
+                            <th class="py-3 px-6 text-xs font-semibold text-slate-500 uppercase tracking-wider">To-Do</th>
+                        </tr>
+                    </thead>
+                    <tbody id="itinerary-body" class="divide-y divide-slate-100 text-sm">
+                    </tbody>
+                </table>
+            </div>
+        </main>
+
+        <!-- Pre-departure Checklist -->
+        <section class="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 border-b border-slate-100 pb-4">
+                <div class="flex items-center gap-2">
+                    <div class="bg-emerald-100 p-2 rounded-lg text-emerald-600">
+                        <i data-lucide="check-square" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-800">Pre-departure Essentials Checklist</h3>
+                        <p class="text-xs text-slate-500 mt-0.5">Max 10 items per module. Uncompleted tasks are pinned to top.</p>
+                    </div>
+                </div>
+                <button onclick="addChecklistModule()" class="shrink-0 text-sm bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-1.5">
+                    <i data-lucide="folder-plus" class="w-4 h-4"></i> Add Category
+                </button>
+            </div>
+
+            <div id="checklist-container" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            </div>
+        </section>
+
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCBjfL6dpzGRdnE2S6_GBYfpBzM5ULFPBY",
+            authDomain: "bali-trip-7eaa3.firebaseapp.com",
+            projectId: "bali-trip-7eaa3",
+            storageBucket: "bali-trip-7eaa3.firebasestorage.app",
+            messagingSenderId: "705845629645",
+            appId: "1:705845629645:web:05fce0bdfa3a59f8e18f84"
+        };
+
+        const appId = 'bali-trip-v3';
+        const GEMINI_API_KEY = 'AIzaSyDTA7yqR7LSZsr9QBWTxomopNyD6fBNIco';
+
+        let auth = null;
+        let db = null;
+        let isFirebaseConfigured = false;
+
+        try {
+            const app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = getFirestore(app);
+            isFirebaseConfigured = true;
+        } catch (e) {
+            console.warn("Firebase init failed:", e);
+        }
+
+        let currentUser = null;
+        let appState = null;
+        let isSaving = false;
+        let saveTimeout = null;
+
+        const defaultState = {
+            itinerary: [
+                { id: "d1", date: "May 16 (Sat)", location: "Transit / Flight", activities: "Flight departure. Prepare for layover.", aiTip: "", todos: [{id: 't11', text: "Check passports & visas", done: false}] },
+                { id: "d2", date: "May 17 (Sun)", location: "Airport to Ubud", activities: "Arrival at Denpasar. Transfer to hotel.", aiTip: "", todos: [{id: 't21', text: "Confirm Adiwana pickup", done: false}, {id: 't22', text: "Prepare entry QR code", done: false}] },
+                { id: "d3", date: "May 18 (Mon)", location: "Padangbai", activities: "Blue Lagoon dive excursion.", aiTip: "", todos: [{id: 't31', text: "Take motion sickness pill!", done: false}, {id: 't32', text: "Pack swimwear & dry clothes", done: false}] },
+                { id: "d4", date: "May 19 (Tue)", location: "Ubud to South Bali", activities: "Transit day heading south.", aiTip: "", todos: [{id: 't41', text: "Coordinate transit driver", done: false}, {id: 't42', text: "Confirm wedding schedule", done: false}] },
+                { id: "d5", date: "May 20 (Wed)", location: "Wedding Venue", activities: "Cliff wedding attendance.", aiTip: "", todos: [{id: 't51', text: "Prepare formal attire", done: false}, {id: 't52', text: "Bring Diptyque gifts", done: false}] },
+                { id: "d6", date: "May 21 (Thu)", location: "Rimba By Ayana", activities: "Resort exploration & sunset viewing.", aiTip: "", todos: [{id: 't61', text: "17:00 Rock Bar reservation", done: false}, {id: 't62', text: "Arrive early for best seating", done: false}] },
+                { id: "d7", date: "May 22 (Fri)", location: "Ayana Resort", activities: "Thalassotherapy & complete relaxation.", aiTip: "", todos: [{id: 't71', text: "Hydrate before spa", done: false}] },
+                { id: "d8", date: "May 23 (Sat)", location: "Airport Return", activities: "Checkout and head to Denpasar Airport.", aiTip: "", todos: [{id: 't81', text: "Original passport check", done: false}, {id: 't82', text: "Allocate extra time for traffic", done: false}] }
+            ],
+            checklistModules: [
+                { id: "cm1", title: "Documents & Finance", items: [{id: 'c11', text: 'Exchange IDR', done: false}, {id: 'c12', text: 'Buy Travel Insurance', done: false}, {id: 'c13', text: 'Print Itineraries', done: false}] },
+                { id: "cm2", title: "Diving Gear", items: [{id: 'c21', text: 'Swimwear', done: false}, {id: 'c22', text: 'Rash guard', done: false}, {id: 'c23', text: 'GoPro & Charger', done: false}] },
+                { id: "cm3", title: "Medicines", items: [{id: 'c31', text: 'Motion sickness pills', done: false}, {id: 'c32', text: 'Band-aids', done: false}, {id: 'c33', text: 'Mosquito repellent', done: false}] },
+                { id: "cm4", title: "Daily Supplies", items: [{id: 'c41', text: 'Travel adapter', done: false}, {id: 'c42', text: 'Power bank', done: false}, {id: 'c43', text: 'Sunscreen', done: false}] }
+            ]
+        };
+
+        function showOfflineMode() {
+            document.getElementById('auth-loading').classList.add('hidden');
+            document.getElementById('app-content').classList.remove('hidden');
+            const status = document.getElementById('sync-status');
+            status.textContent = 'Offline — changes not saved';
+            status.className = 'text-xs text-amber-500 font-medium';
+            appState = JSON.parse(JSON.stringify(defaultState));
+            renderUI();
+        }
+
+        async function initAuth() {
+            if (!isFirebaseConfigured) {
+                showOfflineMode();
+                return;
+            }
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (error) {
+                console.error("Auth Error:", error);
+                showOfflineMode();
+            }
+        }
+
+        if (auth) {
+            onAuthStateChanged(auth, async (user) => {
+                if (user) {
+                    currentUser = user;
+                    loadData();
+                }
+            });
+        }
+
+        async function loadData() {
+            if (!currentUser) return;
+            const docRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'appData', 'state_v3');
+
+            try {
+                const docSnap = await getDoc(docRef);
+                if (docSnap.exists()) {
+                    appState = docSnap.data();
+
+                    // Data migration from V2
+                    if (!appState.checklistModules && appState.checklist) {
+                        appState.checklistModules = Object.values(appState.checklist).map(c => ({
+                            id: generateId(),
+                            title: stripEmojis(c.title),
+                            items: c.items
+                        }));
+                        delete appState.checklist;
+                        triggerSave();
+                    }
+                } else {
+                    appState = JSON.parse(JSON.stringify(defaultState));
+                    await setDoc(docRef, appState);
+                }
+
+                document.getElementById('auth-loading').classList.add('hidden');
+                document.getElementById('app-content').classList.remove('hidden');
+                const status = document.getElementById('sync-status');
+                status.textContent = 'Synced';
+                status.className = 'text-xs text-emerald-500 font-medium';
+                renderUI();
+
+                onSnapshot(docRef, (snapshot) => {
+                    if (snapshot.exists() && !isSaving) {
+                        appState = snapshot.data();
+                        renderUI();
+                    }
+                }, (error) => {
+                    console.error("Snapshot error:", error);
+                });
+
+            } catch (e) {
+                console.error("Data load error:", e);
+                showOfflineMode();
+            }
+        }
+
+        async function triggerSave() {
+            if (!currentUser || !appState || !db) return;
+            isSaving = true;
+            clearTimeout(saveTimeout);
+
+            saveTimeout = setTimeout(async () => {
+                try {
+                    const docRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'appData', 'state_v3');
+                    await setDoc(docRef, appState);
+                } catch (e) {
+                    console.error("Save error:", e);
+                } finally {
+                    setTimeout(() => { isSaving = false; }, 500);
+                }
+            }, 1000);
+        }
+
+        function generateId() {
+            return Math.random().toString(36).substr(2, 9);
+        }
+
+        function stripEmojis(str) {
+            return str.replace(/([✀-➿]|[-]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[‑-⛿]|\uD83E[\uDD10-\uDDFF])/g, '').trim();
+        }
+
+        async function callGeminiAPI(prompt, expectJson = false) {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+            const payload = {
+                contents: [{ parts: [{ text: prompt }] }],
+                systemInstruction: { parts: [{ text: "You are a concise travel assistant for a Bali trip. Be practical and brief." }] }
+            };
+            if (expectJson) payload.generationConfig = { responseMimeType: "application/json" };
+            const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+            if (!res.ok) {
+                const errBody = await res.json().catch(() => ({}));
+                throw new Error(errBody?.error?.message || `HTTP ${res.status}`);
+            }
+            const data = await res.json();
+            return data.candidates?.[0]?.content?.parts?.[0]?.text;
+        }
+
+        window.getAITip = async function(dayIndex) {
+            const day = appState.itinerary[dayIndex];
+            const btn = document.getElementById(`ai-tip-${day.id}`);
+            if (!btn) return;
+            btn.textContent = 'Thinking...';
+            btn.disabled = true;
+            try {
+                const tip = await callGeminiAPI(
+                    `Bali trip. ${day.date}, location: "${day.location}", activities: "${day.activities}". Give 1 practical local tip, max 15 words, plain text only.`
+                );
+                appState.itinerary[dayIndex].aiTip = tip.trim();
+                triggerSave(); renderUI();
+            } catch (e) {
+                console.error('AI Tip error:', e.message);
+                btn.textContent = 'Failed — retry';
+                btn.disabled = false;
+            }
+        };
+
+        window.clearAITip = function(dayIndex) {
+            appState.itinerary[dayIndex].aiTip = '';
+            triggerSave(); renderUI();
+        };
+
+        window.getSmartTodos = async function(dayIndex) {
+            const day = appState.itinerary[dayIndex];
+            const btn = document.getElementById(`ai-todo-${day.id}`);
+            if (!btn) return;
+            btn.textContent = 'Thinking...';
+            btn.disabled = true;
+            try {
+                const existing = day.todos.map(t => t.text).join(', ');
+                const jsonStr = await callGeminiAPI(
+                    `Bali trip. ${day.date}, at "${day.location}", doing: "${day.activities}". Current to-dos: [${existing}]. Suggest 2 specific practical tasks not already listed. Return ONLY a JSON array of strings.`,
+                    true
+                );
+                const suggestions = JSON.parse(jsonStr);
+                if (Array.isArray(suggestions)) {
+                    suggestions.forEach(text => day.todos.push({ id: generateId(), text: String(text), done: false }));
+                    triggerSave(); renderUI();
+                }
+            } catch (e) {
+                console.error('Smart Todos error:', e.message);
+                renderUI();
+            }
+        };
+
+        window.getAIPackingSuggestions = async function(moduleId) {
+            const mod = appState.checklistModules.find(m => m.id === moduleId);
+            if (!mod || mod.items.length >= 10) return;
+            const btn = document.getElementById(`ai-pack-${moduleId}`);
+            if (!btn) return;
+            btn.textContent = '...';
+            btn.disabled = true;
+            try {
+                const spaceLeft = 10 - mod.items.length;
+                const count = Math.min(2, spaceLeft);
+                const existing = mod.items.map(i => i.text).join(', ');
+                const jsonStr = await callGeminiAPI(
+                    `Packing for Bali. Category: "${mod.title}". Current: [${existing}]. Suggest ${count} specific missing items. Return ONLY a JSON array of strings.`,
+                    true
+                );
+                const suggestions = JSON.parse(jsonStr);
+                if (Array.isArray(suggestions)) {
+                    suggestions.forEach(text => {
+                        if (mod.items.length < 10) mod.items.push({ id: generateId(), text: String(text), done: false });
+                    });
+                    triggerSave(); renderUI();
+                }
+            } catch (e) {
+                console.error('Packing suggestions error:', e.message);
+                renderUI();
+            }
+        };
+
+        window.updateField = function(collectionName, itemIndex, field, element) {
+            if (collectionName === 'itinerary') {
+                appState.itinerary[itemIndex][field] = element.innerText;
+            }
+            triggerSave();
+        };
+
+        window.toggleTodo = function(dayIndex, todoId) {
+            const todo = appState.itinerary[dayIndex].todos.find(t => t.id === todoId);
+            if (todo) { todo.done = !todo.done; triggerSave(); renderUI(); }
+        };
+        window.addTodo = function(dayIndex) {
+            const newId = generateId();
+            appState.itinerary[dayIndex].todos.push({ id: newId, text: '', done: false });
+            renderUI();
+            setTimeout(() => document.getElementById('item-' + newId)?.focus(), 30);
+        };
+        window.removeTodo = function(dayIndex, todoId) {
+            appState.itinerary[dayIndex].todos = appState.itinerary[dayIndex].todos.filter(t => t.id !== todoId);
+            triggerSave(); renderUI();
+        };
+        window.updateTodoText = function(dayIndex, todoId, element) {
+            const todo = appState.itinerary[dayIndex].todos.find(t => t.id === todoId);
+            if (!todo) return;
+            todo.text = element.innerText.trim();
+            if (!todo.text) {
+                appState.itinerary[dayIndex].todos = appState.itinerary[dayIndex].todos.filter(t => t.id !== todoId);
+                renderUI();
+            }
+            triggerSave();
+        };
+
+        window.addChecklistModule = function() {
+            const newId = generateId();
+            appState.checklistModules.push({ id: newId, title: '', items: [] });
+            renderUI();
+            setTimeout(() => document.getElementById('mod-title-' + newId)?.focus(), 30);
+        };
+        window.removeChecklistModule = function(moduleId) {
+            appState.checklistModules = appState.checklistModules.filter(m => m.id !== moduleId);
+            triggerSave(); renderUI();
+        };
+        window.updateModuleTitle = function(moduleId, element) {
+            const mod = appState.checklistModules.find(m => m.id === moduleId);
+            if (mod) {
+                let cleanText = stripEmojis(element.innerText).trim();
+                if (cleanText !== element.innerText) element.innerText = cleanText;
+                mod.title = cleanText || 'New Category';
+                triggerSave();
+            }
+        };
+
+        window.toggleChecklistItem = function(moduleId, itemId) {
+            const mod = appState.checklistModules.find(m => m.id === moduleId);
+            const item = mod.items.find(i => i.id === itemId);
+            if (item) {
+                item.done = !item.done;
+                triggerSave();
+                setTimeout(renderUI, 150);
+            }
+        };
+        window.addChecklistItem = function(moduleId) {
+            const mod = appState.checklistModules.find(m => m.id === moduleId);
+            if (mod.items.length >= 10) return;
+            const newId = generateId();
+            mod.items.push({ id: newId, text: '', done: false });
+            renderUI();
+            setTimeout(() => document.getElementById('item-' + newId)?.focus(), 30);
+        };
+        window.removeChecklistItem = function(moduleId, itemId) {
+            const mod = appState.checklistModules.find(m => m.id === moduleId);
+            mod.items = mod.items.filter(i => i.id !== itemId);
+            triggerSave(); renderUI();
+        };
+        window.updateChecklistText = function(moduleId, itemId, element) {
+            const mod = appState.checklistModules.find(m => m.id === moduleId);
+            const item = mod?.items.find(i => i.id === itemId);
+            if (!item) return;
+            item.text = element.innerText.trim();
+            if (!item.text) {
+                mod.items = mod.items.filter(i => i.id !== itemId);
+                renderUI();
+            }
+            triggerSave();
+        };
+
+        function renderUI() {
+            if (!appState) return;
+
+            // Render Itinerary
+            const tbody = document.getElementById('itinerary-body');
+            tbody.innerHTML = '';
+
+            appState.itinerary.forEach((day, index) => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50/50 transition-colors group align-top";
+
+                let locColor = "bg-slate-100 text-slate-700";
+                const locLower = day.location.toLowerCase();
+                if (locLower.includes('wedding') || locLower.includes('rose')) locColor = "bg-rose-50 text-rose-700 border-rose-100";
+                else if (locLower.includes('padangbai') || locLower.includes('dive')) locColor = "bg-blue-50 text-blue-700 border-blue-100";
+                else if (locLower.includes('ayana') || locLower.includes('rimba')) locColor = "bg-amber-50 text-amber-700 border-amber-100";
+
+                tr.innerHTML = `
+                    <td class="py-4 px-6 font-medium text-slate-900 border-r border-slate-100 whitespace-nowrap">
+                        ${day.date.split(' ')[0]} <br><span class="text-slate-400 font-normal text-xs">${day.date.split(' ')[1]}</span>
+                    </td>
+                    <td class="py-4 px-6 border-r border-slate-100">
+                        <div class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border ${locColor} mb-2" contenteditable="true" data-placeholder="Add location..." onblur="updateField('itinerary', ${index}, 'location', this)">${day.location}</div>
+                    </td>
+                    <td class="py-4 px-6 border-r border-slate-100">
+                        <div class="text-slate-600 outline-none" contenteditable="true" data-placeholder="Add activities..." onblur="updateField('itinerary', ${index}, 'activities', this)">${day.activities}</div>
+                        ${day.aiTip ? `
+                            <div class="mt-2 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2 text-xs text-emerald-800 flex items-start gap-2">
+                                <span class="flex-grow">${day.aiTip}</span>
+                                <button onclick="clearAITip(${index})" class="text-emerald-300 hover:text-emerald-600 shrink-0 leading-none">&times;</button>
+                            </div>
+                        ` : `
+                            <button id="ai-tip-${day.id}" onclick="getAITip(${index})" class="mt-2 text-[11px] font-medium text-emerald-600 bg-emerald-50 hover:bg-emerald-100 px-2 py-1 rounded border border-emerald-100 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100">
+                                ✦ Get local tip
+                            </button>
+                        `}
+                    </td>
+                    <td class="py-4 px-6">
+                        <div class="space-y-2">
+                            ${day.todos.map(todo => `
+                                <div class="flex items-start gap-2 group/todo">
+                                    <input type="checkbox" ${todo.done ? 'checked' : ''} onchange="toggleTodo(${index}, '${todo.id}')" class="mt-1 w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer">
+                                    <span id="item-${todo.id}" class="flex-grow outline-none ${todo.done ? 'text-slate-400 line-through' : 'text-slate-700'}" contenteditable="true" onblur="updateTodoText(${index}, '${todo.id}', this)">${todo.text}</span>
+                                    <button onclick="removeTodo(${index}, '${todo.id}')" class="text-slate-300 hover:text-rose-500 opacity-0 group-hover/todo:opacity-100 transition-opacity"><i data-lucide="x" class="w-3 h-3"></i></button>
+                                </div>
+                            `).join('')}
+                            <div class="flex items-center gap-3 mt-2">
+                                <button onclick="addTodo(${index})" class="text-xs text-slate-400 hover:text-emerald-600 flex items-center gap-1 transition-colors">
+                                    <i data-lucide="plus" class="w-3 h-3"></i> Add task
+                                </button>
+                                <button id="ai-todo-${day.id}" onclick="getSmartTodos(${index})" class="text-xs text-blue-400 hover:text-blue-600 flex items-center gap-1 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100">
+                                    ✦ Suggest tasks
+                                </button>
+                            </div>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            // Render Checklist Modules
+            const clContainer = document.getElementById('checklist-container');
+            clContainer.innerHTML = '';
+
+            appState.checklistModules.forEach((mod) => {
+                const sortedItems = [...mod.items].sort((a, b) => {
+                    if (a.done === b.done) return 0;
+                    return a.done ? 1 : -1;
+                });
+
+                const isAllDone = sortedItems.length > 0 && sortedItems.every(i => i.done);
+                const isFull = sortedItems.length >= 10;
+
+                const modDiv = document.createElement('div');
+                modDiv.className = "bg-slate-50 rounded-xl p-5 border border-slate-100 flex flex-col h-full relative group/mod";
+                modDiv.innerHTML = `
+                    <div class="absolute top-4 right-4 opacity-0 group-hover/mod:opacity-100 transition-opacity flex items-center gap-1">
+                        ${!isFull ? `<button id="ai-pack-${mod.id}" onclick="getAIPackingSuggestions('${mod.id}')" class="text-[10px] font-semibold text-emerald-700 bg-emerald-100 hover:bg-emerald-200 px-2 py-1 rounded transition-colors" title="AI suggest items">✦ Suggest</button>` : ''}
+                        <button onclick="removeChecklistModule('${mod.id}')" class="p-1 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded transition-colors" title="Delete Category">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+
+                    <div class="mb-4 pr-10 border-b border-slate-200 pb-2">
+                        <h4 id="mod-title-${mod.id}" class="font-bold text-lg outline-none ${isAllDone ? 'text-emerald-600' : 'text-slate-800'}" contenteditable="true" data-placeholder="Category Title" onblur="updateModuleTitle('${mod.id}', this)">${mod.title}</h4>
+                        <div class="text-xs ${isFull ? 'text-rose-500 font-medium' : 'text-slate-400'} mt-1">
+                            ${sortedItems.length} / 10 items
+                        </div>
+                    </div>
+
+                    <div class="space-y-3 flex-grow pb-4">
+                        ${sortedItems.map(item => `
+                            <div class="flex items-start gap-3 group/item">
+                                <input type="checkbox" ${item.done ? 'checked' : ''} onchange="toggleChecklistItem('${mod.id}', '${item.id}')" class="mt-1 w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer">
+                                <span id="item-${item.id}" class="flex-grow text-sm outline-none ${item.done ? 'text-slate-400 line-through' : 'text-slate-700'}" contenteditable="true" onblur="updateChecklistText('${mod.id}', '${item.id}', this)">${item.text}</span>
+                                <button onclick="removeChecklistItem('${mod.id}', '${item.id}')" class="text-slate-300 hover:text-rose-500 opacity-0 group-hover/item:opacity-100 transition-opacity"><i data-lucide="x" class="w-4 h-4"></i></button>
+                            </div>
+                        `).join('')}
+                        ${sortedItems.length === 0 ? '<p class="text-xs text-slate-400 italic">No items yet.</p>' : ''}
+                    </div>
+
+                    ${!isFull ? `
+                        <button onclick="addChecklistItem('${mod.id}')" class="w-full mt-auto py-2 border border-dashed border-slate-300 rounded-lg text-sm text-slate-500 hover:bg-white hover:text-emerald-600 hover:border-emerald-300 transition-all flex items-center justify-center gap-1">
+                            <i data-lucide="plus" class="w-4 h-4"></i> Add Item
+                        </button>
+                    ` : `
+                        <div class="w-full mt-auto py-2 bg-slate-100 rounded-lg text-sm text-slate-400 text-center flex justify-center items-center gap-1">
+                            <i data-lucide="lock" class="w-3 h-3"></i> Limit Reached
+                        </div>
+                    `}
+                `;
+                clContainer.appendChild(modDiv);
+            });
+
+            lucide.createIcons();
+        }
+
+        initAuth();
+    </script>
+</body>
+</html>
